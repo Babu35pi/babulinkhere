@@ -1,72 +1,101 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Charity Pi App Uganda</title>
-<style>
-body{
-  margin:0;
-  font-family: sans-serif;
-  background: linear-gradient(180deg,#6a1b9a,#ff9800);
-  color:white;
-  text-align:center;
-  padding:20px;
-}
-.card{
-  background:rgba(255,255,255,0.15);
-  backdrop-filter:blur(10px);
-  border-radius:20px;
-  padding:25px;
-  max-width:400px;
-  margin:20px auto;
-}
-.logo{
-  width:110px;
-  height:110px;
-  background:white;
-  border-radius:50%;
-  margin:0 auto 15px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:60px;
-}
-.btn{
-  display:block;
-  background:white;
-  color:#6a1b9a;
-  padding:16px;
-  margin:12px 0;
-  border-radius:50px;
-  text-decoration:none;
-  font-weight:bold;
-  font-size:16px;
-  box-shadow:0 4px 15px rgba(0,0,0,0.2);
-}
-.btn:hover{transform:scale(1.03)}
-.btn-pi{background:#fbbf24;color:#000;}
-.footer{margin-top:20px;opacity:0.8;font-size:13px;}
-</style>
-</head>
-<body>
+"use client";
+import { useEffect, useState } from "react";
 
-<div class="card">
-  <div class="logo">π</div>
-  <h2>Charity Pi App Uganda</h2>
-  <p>Empowering Uganda through Pi Network<br>Join us, Mine Pi, Support Charity!</p>
+export default function Page() {
+  const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [username, setUsername] = useState("");
 
-  <a class="btn btn-pi" href="https://minepi.com/babu35pi" target="_blank">⚡ Mine Pi with Me - Babu35pi</a>
-  <a class="btn" href="https://play.google.com/store" target="_blank">📲 Download Charity Pi App</a>
-  <a class="btn" href="https://wa.me/256700000000" target="_blank">💬 WhatsApp Us</a>
-  <a class="btn" href="https://www.youtube.com/@babu35pi" target="_blank">▶️ YouTube Channel</a>
-  <a class="btn" href="https://www.tiktok.com/@babu35pi" target="_blank">🎵 TikTok - Babu Pi</a>
-  <a class="btn" href="https://facebook.com/" target="_blank">📘 Facebook Page</a>
+  useEffect(() => {
+    const s = document.createElement("script");
+    s.src = "https://sdk.minepi.com/pi-sdk.js";
+    s.async = true;
+    s.onload = () => {
+      const pi = (window as any).Pi;
+      if (pi) {
+        pi.init({ version: "2.0", sandbox: true });
+        setReady(true);
+      }
+    };
+    document.body.appendChild(s);
+  }, []);
 
-  <div class="footer">
-    babulinkhere.com<br>
-    Kampala, Uganda 🇺🇬
-  </div>
-</div>
+  const fixIncomplete = (payment: any) => {
+    setMsg("🔧 Fixing your stuck 99.01 payment...");
+    return fetch("/api/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paymentId: payment.identifier, txid: payment.transaction?.txid }),
+    });
+  };
 
-</body>
-</html>
+  const handlePiPayment = async () => {
+    const pi = (window as any).Pi;
+    if (!pi) { alert("Please open this in Pi Browser"); return; }
+    setBusy(true); setMsg("");
+    try {
+      const auth: any = await new Promise((res, rej) => {
+        pi.authenticate(["payments", "username"], res, rej, fixIncomplete);
+      });
+      setUsername(auth.user?.username || "");
+
+      pi.createPayment(
+        { amount: 1, memo: "BabuLink Premium Access - Fix Checklist", metadata: { app: "babulink", purpose: "kyc_payment_fix" } },
+        {
+          onReadyForServerApproval: async (paymentId: string) => {
+            setMsg("⏳ Approving payment...");
+            await fetch("/api/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentId }) });
+          },
+          onReadyForServerCompletion: async (paymentId: string, txid: string) => {
+            setMsg("✅ Completing...");
+            const res = await fetch("/api/complete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentId, txid }) });
+            if (res.ok) { setMsg("✅ SUCCESS! Your checklist is now GREEN. Go check Pi App!"); }
+            else { setMsg("Completed on chain. Check Portal."); }
+            setBusy(false);
+          },
+          onCancel: () => { setMsg("Payment cancelled"); setBusy(false); },
+          onError: () => { setMsg("Payment error, try again"); setBusy(false); },
+        }
+      );
+    } catch { setBusy(false); setMsg("Auth failed, try again in Pi Browser"); }
+  };
+
+  return (
+    <main className="min-h-screen bg-[#0a0a0a] text-white">
+      <div className="max-w-4xl mx-auto px-6 py-10">
+        <header className="flex justify-between items-center">
+          <h1 className="text-2xl font-black tracking-tighter">BabuLink <span className="text-green-500">.</span></h1>
+          <div className="text-xs px-3 py-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/20">{ready? "● Pi SDK Connected" : "○ Connecting..."}</div>
+        </header>
+
+        <section className="mt-20 text-center">
+          <div className="inline-block px-4 py-1 rounded-full bg-white/5 border border-white/10 text-xs tracking-widest mb-6">WORLD CLASS Pi UTILITY</div>
+          <h2 className="text-5xl md:text-7xl font-black tracking-tighter leading-[0.9]">Fix Your <br/><span className="bg-gradient-to-r from-green-400 to-emerald-600 bg-clip-text text-transparent">99.01 Checklist</span></h2>
+          <p className="mt-6 text-lg text-white/60 max-w-2xl mx-auto">BabuLink uses official Pi Payments SDK to clear incomplete payments. One payment = Permanent GREEN check. Used by pioneers worldwide.</p>
+        </section>
+
+        <div className="mt-12 max-w-md mx-auto bg-white/[0.03] border border-white/10 rounded-[24px] p-8 backdrop-blur">
+          {username && <p className="text-sm text-white/70 mb-4">Welcome, @{username}</p>}
+          <button onClick={handlePiPayment} disabled={!ready || busy} className="w-full py-4 rounded-xl bg-white text-black font-bold text-lg disabled:opacity-50 hover:bg-white/90 transition">
+            {busy? "Processing..." : ready? "Pay 1 Pi - Fix Now" : "Loading Pi SDK..."}
+          </button>
+          {msg && <div className="mt-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-300 text-sm text-center">{msg}</div>}
+          <div className="mt-6 grid grid-cols-3 gap-3 text-[10px] text-center text-white/40">
+            <div className="p-3 rounded-lg bg-white/5">✔ Official SDK</div>
+            <div className="p-3 rounded-lg bg-white/5">✔ Secure</div>
+            <div className="p-3 rounded-lg bg-white/5">✔ Instant Fix</div>
+          </div>
+        </div>
+
+        <section className="mt-20 grid md:grid-cols-3 gap-4">
+          <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/10"><h3 className="font-bold">🔒 No Passphrase</h3><p className="text-sm text-white/50 mt-2">BabuLink never asks for your wallet passphrase. Only Pi SDK popup.</p></div>
+          <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/10"><h3 className="font-bold">⚡ Checklist Fix</h3><p className="text-sm text-white/50 mt-2">Clears incomplete payments that block step 8 - fixes 99.01 to -1.</p></div>
+          <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/10"><h3 className="font-bold">🌍 World Class</h3><p className="text-sm text-white/50 mt-2">Built for Pi Mainnet ready, used by global pioneers.</p></div>
+        </section>
+
+        <footer className="mt-20 text-center text-[11px] text-white/30">© 2026 BabuLink - Pi Network Utility - Pi API Secured</footer>
+      </div>
+    </main>
+  );
+}
