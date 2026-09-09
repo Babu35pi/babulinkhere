@@ -66,7 +66,7 @@ BabuLink Charity is independent from Pi Network & Pi Core Team. Pi is used as ut
 
 <script>
 // --- INIT ---
-Pi.init({version:"2.0", sandbox:false}); // false = mainnet, true = testnet for testing
+Pi.init({version:"2.0", sandbox:true}); // false = mainnet, true = testnet for testing
 function showMsg(text, bg){const m=document.getElementById('msg');m.style.display='block';m.style.background=bg;m.innerText=text;}
 
 const fixIncomplete = async (payment) => {
